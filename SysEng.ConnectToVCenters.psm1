@@ -1,17 +1,20 @@
 ﻿<#
 .SYNOPSIS
 
-Connects to vCenters specified in a CSV file.
+Connects to vCenters specified in a PSCustomObject.
 
 
 .DESCRIPTION
 
-This command will loop through the specified PS Custom Object and connect to each specified vCenter. It will pass the credentials that were used to run the command and if the authentication fails, it will prompt the user for alternate credentials.
+This command will loop through the specified PS Custom Object and connect to each specified vCenter. It will pass
+the credentials that were used to run the command and if the authentication fails, it will prompt the user for
+alternate credentials.
 
 
 .PARAMETER VCenters
 
-Takes a PS Custom Object that contains an array of vCenters a user wants to connect to.
+Takes a PSCustomObject that contains an array of vCenters a user wants to connect to. Please note, the PSCustomObject
+needs to possess a key called "vCenter". See EXAMPLES for more details.
 
 
 .INPUTS
@@ -25,6 +28,17 @@ The command will list the vCenters it is attempting to connect to.
 
 
 .EXAMPLE
+
+PS> $vCenters_Custom_Ojbect = Import-Csv C:\path\to\csv\file.csv
+PS> $vCenters_Custom_Ojbect
+
+vCenter
+-------
+vcenter01.acme.local
+vcenter02.acme.local
+vcenter03.acme.local
+vcenter04.acme.local
+vcenter05.acme.local
 
 PS> Connect-SysEngToVCenters -VCenters $vCenters_Custom_Ojbect
 
@@ -52,5 +66,3 @@ function Connect-SysEngToVCenters {
         Connect-VIServer $_.vCenter | Out-Null
     }
 }
-
-Export-ModuleMember -Function Connect-SysEngToVCenters
