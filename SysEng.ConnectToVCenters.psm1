@@ -16,6 +16,10 @@ alternate credentials.
 Takes a PSCustomObject that contains an array of vCenters a user wants to connect to. Please note, the PSCustomObject
 needs to possess a key called "vCenter". See EXAMPLES for more details.
 
+NOTE: If no argument is passed to the -VCenter parameter, then default values are parsed from a CSV file located under:
+
+$home\Documents\WindowsPowerShell\Modules\SysEng\vCenters.csv
+
 
 .INPUTS
 
@@ -51,8 +55,7 @@ function Connect-SysEngToVCenters {
 
     param(
 
-        [Parameter(Mandatory=$true)]
-        [PSCustomObject]$VCenters = (Import-Csv "$home\Documents\WindowsPowerShell\Modules\SysEng\vCenters.csv")
+        [PSCustomObject]$VCenters = (Import-Csv "$((Get-Module SysEng).ModuleBase)\vCenters.csv")
     )
 
 

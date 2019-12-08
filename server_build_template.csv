@@ -1,0 +1,6 @@
+﻿VMName,Domain,vCenter,Template,Cluster,Datastore,AdditionalDisks,CapacityGB,GuestId,MemoryGB,NumCpu,CoresPerSocket,VLAN,IPAddress,DefaultGateway,Prefix,DNS,OU
+TestVM01,acme.local,vcenter01.acme.local,TMPL_2016_GOLD,Cluster01,Datastore05,TRUE,60,windows9Server64Guest,16,2,1,50,10.10.50.100,10.10.50.1,24,"8.8.8.8,8.8.4.4","OU=Servers,DC=acme,DC=local"
+TestVM02,acme.local,vcenter01.acme.local,TMPL_2016_GOLD,Cluster03,Datastore01,FALSE,,windows9Server64Guest,4,1,1,20,10.10.20.120,10.10.20.1,24,"8.8.8.8,8.8.4.4","OU=Servers,DC=acme,DC=local"
+TestVM03,test.local,vcenter04.acme.local,TMPL_2016_GOLD,Cluster01,Datastore01,TRUE,80,windows9Server64Guest,8,4,2,30,10.10.31.130,10.10.30.1,23,"8.8.8.8,8.8.4.4","OU=Servers,DC=test,DC=local"
+TestVM04,test.local,vcenter01.acme.local,TMPL_2016_GOLD,Cluster09,Datastore03,FALSE,,windows9Server64Guest,8,2,2,50,10.10.50.101,10.10.50.1,24,"8.8.8.8,8.8.4.4","OU=Servers,DC=test,DC=local"
+TestVM05,acme.local,vcenter05.acme.local,TMPL_2016_GOLD,Cluster01,Datastore01,FALSE,,windows9Server64Guest,10,6,3,50,10.10.50.102,10.10.50.1,24,"8.8.8.8,8.8.4.4","OU=Servers,DC=acme,DC=local"

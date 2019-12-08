@@ -17,29 +17,48 @@ The below instructions will guide you through what you need to do in order to ru
 Powershell Version:
 ```
 PS> $PSVersionTable
+
+Name                           Value
+----                           -----
+PSVersion                      5.1.17763.771
+PSEdition                      Desktop
+PSCompatibleVersions           {1.0, 2.0, 3.0, 4.0...}
+BuildVersion                   10.0.17763.771
+CLRVersion                     4.0.30319.42000
+WSManStackVersion              3.0
+PSRemotingProtocolVersion      2.3
+SerializationVersion           1.1.0.1
 ```
 
 PowerCLI version:
 ```
 PS> Get-PowerCLIVersion
+
+PowerCLI Version
+----------------
+   VMware PowerCLI 11.5.0 build 14912921
 ```
 
 Modules:
 ```
 PS> Get-Module ActiveDirectory -ListAvailable
-```
 
-The repo needs to be cloned/downloaded to:
+ModuleType Version    Name
+---------- -------    ----
+Manifest   1.0.0.0    ActiveDirectory
 ```
-$home\Documents\WindowsPowershell\Modules
-```
-**NOTE:** If downloading the repo, ensure that you rename the folder to "SysEng".
 
 ### Installation
-Once the module has been cloned/downloaded and all requirements above have been met, simply start PowerShell and import the module:
+Once you confirmed that all requirements above have been met, simply start PowerShell and install the module from the PowerShell gallery:
+```
+PS> Install-Module SysEng
+```
+Then you can just import the module:
 ```
 PS> Import-Module SysEng
 ```
+
+**NOTE:** If downloading the repo directly from GitHub, ensure that you rename the folder to "SysEng".
 
 ## Examples
 Get familiar with the commands:
