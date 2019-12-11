@@ -343,8 +343,11 @@ This script will loop through the specified PSCustomObject and perform the follo
     VM(s) via WinRM.
 
 .PARAMETER Servers
-Takes a PSCustomObject that contains an array of values related to the virtual machine builds. Please see examples
-for more details and check out the example CSV template in the module directory.
+Takes a PSCustomObject that contains an array of values related to the virtual machine builds. Please see
+examples for more details and check out the example CSV template in the module base directory or at the below
+URL.
+
+https://github.com/igorkrnjajic/SysEng
 
 .PARAMETER ConnectToVCenters
 Boolean parameter is set to TRUE by default. Connects to the speicified vCenters.

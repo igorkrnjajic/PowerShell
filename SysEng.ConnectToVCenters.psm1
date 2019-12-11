@@ -10,6 +10,10 @@ This command will loop through the specified PS Custom Object and connect to eac
 the credentials that were used to run the command and if the authentication fails, it will prompt the user for
 alternate credentials.
 
+To specify your own default values for the -VCenter parameter, edit the CSV file located in the module base directory:
+
+"$((Get-Module SysEng).ModuleBase)\vCenters.csv"
+
 
 .PARAMETER VCenters
 
@@ -18,7 +22,7 @@ needs to possess a key called "vCenter". See EXAMPLES for more details.
 
 NOTE: If no argument is passed to the -VCenter parameter, then default values are parsed from a CSV file located under:
 
-$home\Documents\WindowsPowerShell\Modules\SysEng\vCenters.csv
+"$((Get-Module SysEng).ModuleBase)\vCenters.csv"
 
 
 .INPUTS
