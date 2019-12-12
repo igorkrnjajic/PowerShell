@@ -409,8 +409,7 @@ PS> Start-SysEngServerBuild -Servers $Servers -LocalCreds Administrator
 function Start-SysEngServerBuild {
 
     param(
-        [Parameter(Mandatory=$true)]
-        [PSCustomObject]$Servers,
+        [Parameter(Mandatory=$true)][PSCustomObject]$Servers,
         [Boolean]$ConnectToVCenters=$true,
         [Boolean]$CreateVM=$true,
         [Boolean]$ConfigureVM=$true,
@@ -428,8 +427,13 @@ function Start-SysEngServerBuild {
         Connect-SysEngToVCenters -VCenters $Servers
     }
 
-    #[STAGE 2] Get Domain Credential(s)
+    #[STAGE 2] Get Domain Credential(s) and Local Credential
     if($ConfigureGuest -or $CreateADMGroup -or $AddADMGroup) {
+
+        if(!$LocalCreds -and $ConfigureGuest) {
+
+            $LocalCreds = Get-Credential -Message "Provide credentials for the guest OS:"
+        }
 
         Write-Host "`n[STAGE 2] Get Domain Credential(s)`n" -ForegroundColor Cyan
         $DomainCreds = Get-DomainCredentials -Domains ($Servers | Select-Object Domain -Unique)
