@@ -143,9 +143,8 @@ The Set-SysEngGuest function will loop through the newly created VM(s) and confi
 function Set-SysEngGuest {
 
     param(
-        [Parameter(Mandatory=$true)]
-        [PSCustomObject]$VM,
-        [PSCredential]$LocalCreds
+        [Parameter(Mandatory=$true)][PSCustomObject]$VM,
+        [Parameter(Mandatory=$true)][PSCredential]$LocalCreds
     )
 
 

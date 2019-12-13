@@ -63,8 +63,8 @@ function Connect-SysEngToVCenters {
     )
 
 
-    Write-Host "NOTE: The script will try and connect to the vCenter(s) using your current credentials." `
-                "If it fails, it will prompt you for alternate credentials." -ForegroundColor White -BackgroundColor Black
+    Write-Host "NOTE: The script will try and connect to the vCenter(s) using your current credentials.$(
+                )If it fails, it will prompt you for alternate credentials." -ForegroundColor White -BackgroundColor Black
     Read-Host("Press `"Enter`" to continue or `"CTRL + C`" to quit") | Out-Null
 
     $VCenters | Select-Object vCenter -Unique | ForEach-Object {
