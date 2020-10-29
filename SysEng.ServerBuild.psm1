@@ -192,8 +192,8 @@ function Set-SysEngWindowsGuest {
 function Set-SysEngLinuxGuest {
 
     param(
-        [Parameter(Mandatory=$true)]$VM
-        [Parameter(Mandatory=$true)]$LocalCreds
+        [Parameter(Mandatory=$true)][PSCustomObject]$VM,
+        [Parameter(Mandatory=$true)][PSCredential]$LocalCreds
     )
 
     $VMName = $VM.Name
