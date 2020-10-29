@@ -132,15 +132,14 @@ function Set-SysEngVM {
 <#
 CONFIGURE GUEST OS
 
-The Set-SysEngGuest function will loop through the newly created VM(s) and configure the following:
+The Set-SysEngWindowsGuest and Set-SysEngLinuxGuest function will loop through the newly created VM(s) and configure the following:
 - Remove any auto-assigned APIPA address
 - Assign the specified IPv4 address and prefix
-- Disable IPv6
-- Assign specified DNS servers
+- Assign specified DNS servers and suffixes
 - Attempt to join guest OS to specified domain and place it in the specified OU
 #>
 
-function Set-SysEngGuest {
+function Set-SysEngWindowsGuest {
 
     param(
         [Parameter(Mandatory=$true)][PSCustomObject]$VM,
@@ -167,7 +166,6 @@ function Set-SysEngGuest {
     $setGuestIP = "
         Remove-NetIPAddress -InterfaceAlias $Interface -Confirm:`$false -ea SilentlyContinue
         New-NetIPAddress -IPAddress $IPAddress -InterfaceAlias $Interface -DefaultGateway $DefaultGateway -AddressFamily IPv4 -Type Unicast -PrefixLength $Prefix
-        Set-NetAdapterBinding -Name $Interface -ComponentID ms_tcpip6 -Enabled:`$false -Confirm:`$false
     "
     Write-Host "$((Get-Date).ToString()) | Configuring IP on $VMName"
     Invoke-VMScript -VM $VMName -ScriptText $setGuestIP -GuestCredential $LocalCreds -RunAsync | Out-Null
@@ -191,6 +189,37 @@ function Set-SysEngGuest {
     Invoke-VMScript -VM $VMName -ScriptText $AddGuestToDomain -GuestCredential $LocalCreds -RunAsync
 }
 
+function Set-SysEngLinuxGuest {
+
+    param(
+        [Parameter(Mandatory=$true)]$VM
+        [Parameter(Mandatory=$true)]$LocalCreds
+    )
+
+    $VMName = $VM.Name
+    $IPAddress = $VM.IPAddress
+    $DNS = $VM.DNS.Replace(" ","")
+    $DefaultGateway = $VM.DefaultGateway
+    $Prefix = $VM.Prefix
+    $Domain = $VM.Domain
+    $ConfigTemplate = Get-Content "$((Get-Module Syseng).ModuleBase)\Linux\100-ubuntu_20-04_tmpl.cfg" -Raw
+    $ConfigFile = "$((Get-Module Syseng).ModuleBase)\Linux\100-$VMName.cfg"
+
+    # Update config template with user's input
+    $ConfigTemplate = $ConfigTemplate -replace "<hostname>",$VMName
+    $ConfigTemplate = $ConfigTemplate -replace "<ip_addr>","$IPAddress/$Prefix"
+    $ConfigTemplate = $ConfigTemplate -replace "<gw_addr>",$DefaultGateway
+    $ConfigTemplate = $ConfigTemplate -replace "<dns_addr>",$DNS
+    $ConfigTemplate = $ConfigTemplate -replace "<dns_suffix>",$Domain
+
+    Write-Host "$((Get-Date).ToString()) | Copying `"100-$VMName.cfg`" to $VMName"
+    New-Item -Path $ConfigFile -ItemType File -Value $ConfigTemplate | Out-Null
+    Copy-VMGuestFile -Source $ConfigFile -Destination "/etc/cloud/cloud.cfg.d/" -LocalToGuest -VM $VMName -GuestCredential $LocalCreds
+    Remove-Item $ConfigFile
+
+    Invoke-VMScript -VM $VMName -ScriptText "cloud-init clean -lsr" -ScriptType Bash -GuestCredential $LocalCreds -RunAsync
+}
+
 
 <#
 GET CREDENTIALS FOR EACH DOMAIN
@@ -201,8 +230,7 @@ it can join the newly created VM(s) to the specified domains.
 function Get-DomainCredentials {
 
     param(
-        [Parameter(Mandatory=$true)]
-        [Array]$Domains
+        [Parameter(Mandatory=$true)][Array]$Domains
     )
 
     $DomainCredentials = @()
@@ -221,68 +249,6 @@ function Get-DomainCredentials {
     }
 
     return $DomainCredentials
-}
-
-
-<#
-CREATE ADM GROUP
-
-The New-SysEngADMGroup function will loop through the newly created VM(s) and create an administrative AD
-group that will serve for administrating the VM. The group will be placed in the OU that has been specified
-in this function. You can specify your own OU by simply editing the -Path parameter in this function.
-#>
-function New-SysEngADMGroup {
-
-    param(
-        [Parameter(Mandatory=$true)]
-        [PSCustomObject]$Server
-    )
-
-    
-    $GroupName = "ADM_$($Server.VMName)"
-    $Credentials = $Server.DomainCreds.Credentials
-    $DC = (Resolve-DnsName $Server.DNS.Split(',').Trim()[0]).NameHost
-
-    if($Server.Domain -eq "acme.local") {
-
-        Write-Host "$((Get-Date).ToString()) | Creating AD group $GroupName"
-        New-ADGroup -Name $GroupName `
-                    -DisplayName $GroupName `
-                    -SamAccountName $GroupName `
-                    -GroupCategory Security `
-                    -GroupScope DomainLocal `
-                    -Description "Administration - $($Server.VMName)" `
-                    -Path "OU=ADM,OU=Groups,OU=Enterprise,DC=acme,DC=local" `
-                    -Server $DC `
-                    -Credential $Credentials
-    }    
-}
-
-
-<#
-ADD ADM GROUP TO LOCAL ADMINISTRATORS GROUP
-
-The Add-SysEngADMGroup function will loop through the newly created VM(s) and add the ADM groups that were
-created in the New-SysEngADMGroup function.
-#>
-function Add-SysEngADMGroup {
-
-    param(
-        [Parameter(Mandatory=$true)]
-        [PSCustomObject]$Server
-    )
-
-    $VMName = $Server.VMName.Trim()
-    $Credentials = $Server.DomainCreds.Credentials
-    $GroupName = "ADM_$($VMName)"
-    $AddADMGroup = {
-        
-        param($d,$g)
-        NET LOCALGROUP Administrators "$($d.Domain.Split('.')[0])\$g" /ADD
-    }
-
-    Write-Host "$((Get-Date).ToString()) | Adding $GroupName to $VMName"
-    Invoke-Command $VMName -ScriptBlock $AddADMGroup -ArgumentList ($Server,$GroupName) -Credential $Credentials
 }
 
 
@@ -329,17 +295,8 @@ This script will loop through the specified PSCustomObject and perform the follo
 -[STAGE 5] Configure Guest OS
     - Will remove any auto-assigned APIPA addresses
     - Assign the specified IPv4 address with specified prefix
-    - Disable IPv6
     - Assign specified DNS servers
     - Attempt to join the guest OS to specified domain and place it in the specified OU
-
-- [STAGE 6] Create ADM Group
-    - Will attempt to create an ADM group (Naming Convention: "ADM_<Hostname>") and place it in the
-    specified OU. The default OU can be edited in the New-SysEngADMGroup function under the -Path parameter
-
-- [STAGE 7] Add ADM Group to Guest OS
-    - Will attempt to add the newly created ADM group to the local "Administrators" group on the newly created
-    VM(s) via WinRM.
 
 .PARAMETER Servers
 Takes a PSCustomObject that contains an array of values related to the virtual machine builds. Please see
@@ -348,35 +305,25 @@ URL.
 
 https://github.com/igorkrnjajic/SysEng
 
-.PARAMETER ConnectToVCenters
-Boolean parameter is set to TRUE by default. Connects to the speicified vCenters.
+.PARAMETER SkipConnectToVCenters
+Switch parameter will skip connecting to vCenters. Good to use if you're already connected to the vCenters.
 
-.PARAMETER CreateVM
-Boolean parameter is set to TRUE by default. Creates a VM with the specified name by cloning the specified template.
+.PARAMETER SkipCreateVM
+Switch parameter will skip creating a new VM and move on to configuring an existing VM.
 
-.PARAMETER ConfigureVM
-Boolean parameter is set to TRUE by default. Configures the newly created VMs with the specified parameters.
+.PARAMETER SkipConfigureVM
+Switch parameter will skip configuring the specified VM and move on to configuring the guest OS.
 
-.PARAMETER ConfigureGuest
-Boolean parameter is set to TRUE by default. Configures the guest OS on the newly created VMs using the specified
-parameters.
-
-NOTE: If setting this parameter to True, ensure that you specify the -LocalCreds parameter as well.
+.PARAMETER SkipConfigureGuest
+Swich parameter will skip configuring the guest OS on specified VM.
 
 .PARAMETER LocalCreds
-Takes a PSCredential object that will grant access to the guest OS.
-
-NOTE: Must be specified if the -ConfigureGuest and/or -AddADMGroup parameter is set to True.
+Takes a PSCredential object that will grant access to the guest OS. This parameter is mandatory if you want to configure the
+guest OS and/or join a domain.
 
 .PARAMETER CreateADMGroup
 Boolean parameter is set to TRUE by default. Creates an administrative group in the format "ADM_<Hostname>" and palces
 it in the OU defined in the New-SysEngADMGroup function.
-
-.PARAMETER AddADMGroup
-Boolean parameter is set to TRUE by default. Adds the corresponding ADM group to the local "Administrators" group on
-guest OS.
-
-NOTE: If setting this parameter to True, ensure that you specify the -LocalCreds parameter as well.
 
 .EXAMPLE
 PS> $Servers = Import-Csv C:\path\to\server\build\template.csv
@@ -409,27 +356,26 @@ function Start-SysEngServerBuild {
 
     param(
         [Parameter(Mandatory=$true)][PSCustomObject]$Servers,
-        [Boolean]$ConnectToVCenters=$true,
-        [Boolean]$CreateVM=$true,
-        [Boolean]$ConfigureVM=$true,
-        [Boolean]$ConfigureGuest=$true,
-        [PSCredential]$LocalCreds,
-        [Boolean]$CreateADMGroup=$true,
-        [Boolean]$AddADMGroup=$true
+        [Switch]$SkipConnectToVCenters,
+        [Switch]$SkipCreateVM,
+        [Switch]$SkipConfigureVM,
+        [Switch]$SkipConfigureGuest,
+        [Switch]$JoinGuestToDomain,
+        [PSCredential]$LocalCreds
     )
 
 
     #[STAGE 1] Connect to vCenter(s)
-    if($ConnectToVCenters) {
+    if(!$SkipConnectToVCenters) {
 
         Write-Host "`n[STAGE 1] Connect to vCenter(s)`n" -ForegroundColor Cyan
         Connect-SysEngToVCenters -VCenters $Servers
     }
 
     #[STAGE 2] Get Domain Credential(s) and Local Credential
-    if($ConfigureGuest -or $CreateADMGroup -or $AddADMGroup) {
+    if($JoinGuestToDomain) {
 
-        if(!$LocalCreds -and $ConfigureGuest) {
+        if(!$LocalCreds) {
 
             $LocalCreds = Get-Credential -Message "Provide credentials for the guest OS:"
         }
@@ -445,7 +391,7 @@ function Start-SysEngServerBuild {
     }
 
     #[STAGE 3] Create VM(s)
-    if($CreateVM) {
+    if(!$SkipCreateVM) {
 
         Write-Host "`n[STAGE 3] Create VM(s)`n" -ForegroundColor Cyan
         
@@ -459,7 +405,7 @@ function Start-SysEngServerBuild {
     }
 
     #[STAGE 4] Configure VM(s)
-    if($ConfigureVM) {
+    if(!$SkipConfigureVM) {
 
         Write-Host "`n[STAGE 4] Configure VM(s)`n" -ForegroundColor Cyan
 
@@ -470,13 +416,13 @@ function Start-SysEngServerBuild {
 
         # Wait 4 minutes for VM(s) to power on
         Write-Host "$((Get-Date).ToString()) | Waiting for VMs to power on (4 minutes)." -ForegroundColor Yellow
-        Start-Sleep 240
+        Start-Sleep (60*4)
     }
 
     #[STAGE 5] Configure Guest(s)
-    if($ConfigureGuest) {
+    if(!$SkipConfigureGuest) {
 
-        if($null -ne $LocalCreds) {
+        if($LocalCreds) {
 
             Write-Host "`n[STAGE 5] Configure Guest(s)`n" -ForegroundColor Cyan
 
@@ -487,29 +433,7 @@ function Start-SysEngServerBuild {
             
         } else {
 
-            Throw "The -ConfigureGuest parameter is set to True, but the -LocalCreds parameter is Null."
-        }
-    }
-
-    #[STAGE 6] Create ADM Group(s)
-    if($CreateADMGroup) {
-
-        Write-Host "`n[STAGE 6] Create ADM Group(s)`n" -ForegroundColor Cyan
-
-        $Servers | ForEach-Object {
-
-            New-SysEngADMGroup -Server $_
-        }
-    }
-
-    #[STAGE 7] Add ADM Group to Server
-    if($AddADMGroup) {
-
-        Write-Host "`n[STAGE 7] Add ADM Group to Server`n" -ForegroundColor Cyan
-
-        $Servers | ForEach-Object {
-
-            Add-SysEngADMGroup -Server $_
+            Throw "You need to provide guest OS credentials in order to configure the guest OS. Use the -LocalCreds parameter."
         }
     }
 }
